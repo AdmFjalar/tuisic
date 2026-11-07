@@ -4,6 +4,16 @@ use rodio::source::{SineWave, Source};
 
 fn main() -> io::Result<()>{
 
+    // IDEAS
+    // 1. Queue music (add songs by file path). Could add easier navigation with arrow keys + enter key down the road.
+    // 2. Shuffle order of songs. 
+    // 3. Add repeat function (song or playlist).
+    // 4. Playlists.
+    // 5. MPRIS integration.
+    // 6. Move queue from player to separate queue. This would allow for other ideas to more easily be added.
+    // 7. Next / Previous songs.
+    // 8. Jump around in song (with arrow keys?).
+
     // Instantiate channel for threads
     let (tx, rx) = mpsc::channel();
 
@@ -46,6 +56,10 @@ fn main() -> io::Result<()>{
             player.append(rodio::Decoder::try_from(file).expect(""));
         }
 
+        player.set_speed(1.0);
+        player.set_volume(1.0);
+        
+
         // Infinite loop to continously receive playback commands
         while (true) {
             let received: &str = rx.recv().unwrap();
@@ -56,7 +70,7 @@ fn main() -> io::Result<()>{
                 player.play();
             }
         }
-        
+    
         player.sleep_until_end();
     } else {
         println!("Not found ;(");
