@@ -5,7 +5,7 @@ use crossterm::{cursor, execute, terminal::{self, Clear, ClearType::{All, Purge}
 use crossterm::event::{self, Event, KeyEvent, KeyCode, KeyModifiers};
 use crossterm::style::Stylize;
 
-struct Song {
+struct Entry {
     path: String,
     // name: String,
     // timestamp: Duration,
@@ -14,7 +14,7 @@ struct Song {
 
 struct Playlist {
     path: String,
-    songs: Vec<Song>,
+    songs: Vec<Entry>,
 }
 
 fn main() -> io::Result<()>{
@@ -30,9 +30,9 @@ fn main() -> io::Result<()>{
     // 8. Jump around in song (with arrow keys?).
 
     let mut current_playlist: Playlist;
-    let mut current_song: Song;
-    let mut queued_songs: Vec<Song>;
-    let mut cur_path = String::from("/home/oliver/Musik/");
+    let mut current_song: Entry;
+    let mut queued_songs: Vec<Entry>;
+    let mut cur_path = String::from("/home/oliver/");
 
     enable_raw_mode()?;
 
@@ -68,33 +68,55 @@ fn main() -> io::Result<()>{
     let mut directory_exists: bool = false;
 
     let mut path = String::new();
-    path = cur_path.to_string();
+
+
     let mut sel_index = 0;
+    let mut last_index = 999;
     loop {
-        if let Ok(songs) = get_directory_contents(&path.trim()) {
-            for i in 0..songs.len() {
-                if i == sel_index {
-                    print!("{}\n", songs[i].path.clone().bold().italic());
-                }
-                else {
-                    print!("{}\n", songs[i].path.clone());
-                }
+        path = cur_path.to_string();
+        if let Ok(files) = get_directory_contents(&path.trim()) {
+            if (last_index != sel_index) {
+                print_menu(sel_index, last_index, &files);
             }
-            stdout.execute(Clear(terminal::ClearType::All))?;
+
+            last_index = sel_index;
             if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(KeyEvent{ code, modifiers, .. }) = event::read()? {
                 match code {
-                    KeyCode::Up => {sel_index -= 1},
+                    KeyCode::Up => {if (sel_index == 0) {
+                        sel_index = files.len() - 1;
+                    } else {
+                        sel_index -= 1
+                    }},
                     KeyCode::Down => {sel_index += 1},
+                    KeyCode::Right => {
+                        if Path::new(&files[sel_index].path).is_dir() {
+                        cur_path = files[sel_index].path.clone();
+                        sel_index = 0;
+                        last_index = 999;
+                        } else {
+                            let file = File::open(&files[sel_index].path)?;
+                            player.stop();
+                            player.append(rodio::Decoder::try_from(file).expect("Unsupported audio format"));
+                        }
+                    },
+                    KeyCode::Left => {
+                        
+                        if (Path::new(&cur_path).parent().is_some()) {
+                            cur_path = Path::new(&cur_path).parent().unwrap().display().to_string();
+                        } 
+                        sel_index = 0;
+                        last_index = 999;
+                    }
                     _ => (),
                 }
             }
             if (sel_index < 0) {
-                sel_index = songs.len() - 1;
-            } else if (sel_index > songs.len() - 1) {
+                sel_index = files.len() - 1;
+            } else if (sel_index > files.len() - 1) {
                 sel_index = 0;
             }
-        }
+            }
         };
     }
     
@@ -129,21 +151,32 @@ fn main() -> io::Result<()>{
     //         }
     //     }
     
-    //     // player.sleep_until_end();
+        player.sleep_until_end();
     
      Ok(())
 }
 
-fn get_directory_contents(dir_path: &str) -> std::io::Result<Vec<Song>> {
-    let mut songs: Vec<Song> = vec![];
+fn get_directory_contents(dir_path: &str) -> std::io::Result<Vec<Entry>> {
+    let mut files: Vec<Entry> = vec![];
 
     for entry in fs::read_dir(dir_path)? {
         let entry = entry?;
-        let song = Song {
-            path: entry.path().display().to_string().strip_prefix(dir_path).unwrap().to_string(),
+        let file = Entry {
+            path: entry.path().display().to_string(),
         };
-        songs.push(song);
+        files.push(file);
     }
 
-    Ok(songs)
+    Ok(files)
+}
+
+fn print_menu(sel_index: usize, last_index: usize, files: &Vec<Entry>) {
+    execute!(stdout(), Clear(All)).unwrap();
+    for i in 0..files.len() {
+        if i == sel_index.try_into().unwrap() {
+            print!("> {}\r\n", files[i].path.clone().bold().italic());
+        } else {
+            print!("  {}\r\n", files[i].path.clone());
+        }
+    }
 }
