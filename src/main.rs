@@ -36,36 +36,12 @@ fn main() -> io::Result<()>{
 
     enable_raw_mode()?;
 
-     
-
-    // Instantiate channel for threads
-    //let (tx, rx) = mpsc::channel();
-
+    
     // Instantiate rodio player
     let mut handle = rodio::DeviceSinkBuilder::open_default_sink().expect("");
     handle.log_on_drop(false);
     let player = rodio::Player::connect_new(handle.mixer());
 
-    let stdin = io::stdin();
-
-    let mut stdout =  io::stdout();
-    // Spawn input thread to allow input during playback
-    thread::spawn(move || {
-        // let mut buffer = String::new();
-        // loop {
-        //     buffer.clear();
-        //     stdin.read_line(&mut buffer).expect("");
-        //     let command = buffer.trim().to_string();
-
-        //     if tx.send(command).is_err() {
-        //         break;
-        //     }
-        // }
-
-    });
-
-    
-    let mut directory_exists: bool = false;
 
     let mut path = String::new();
 
@@ -104,7 +80,10 @@ fn main() -> io::Result<()>{
                         
                         if (Path::new(&cur_path).parent().is_some()) {
                             cur_path = Path::new(&cur_path).parent().unwrap().display().to_string();
-                        } 
+                        }
+                        else {
+                            break;
+                        }
                         sel_index = 0;
                         last_index = 999;
                     }
@@ -119,41 +98,9 @@ fn main() -> io::Result<()>{
             }
         };
     }
-    
-
-    // while !Path::new(&path).exists() {
-    //     path = rx.recv().unwrap().trim().to_string();
-    // }
-
-    // for entry in fs::read_dir(&path)? {
-    //     let entry = entry?;
-    //     let file = File::open(entry.path())?;
-    //     player.append(rodio::Decoder::try_from(file).expect("Unsupported audio format"));
-    // }
-
-    //     player.set_speed(1.0);
-    //     player.set_volume(1.0);
-        
-    //     // Infinite loop to continously receive playback commands
-    //     loop {
-    //         let received: String = rx.recv().unwrap();
-    //         if (received == "pause") {
-    //         player.pause();
-    //         }
-    //         if (received == "play") {
-    //             player.play();
-    //         }
-    //         if (received == "next") {
-    //             player.skip_one();
-    //         }
-    //         if (received == "close") {
-    //             break;
-    //         }
-    //     }
-    
-        player.sleep_until_end();
-    
-     Ok(())
+   
+    disable_raw_mode();
+    Ok(())
 }
 
 fn get_directory_contents(dir_path: &str) -> std::io::Result<Vec<Entry>> {
